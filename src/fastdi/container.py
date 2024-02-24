@@ -1,38 +1,16 @@
-from abc import ABC, abstractmethod
-from typing import Type, Dict, Callable, TypeVar, TypeAlias, Any, Union, Tuple, Generic
-from pydantic import BaseModel
-from dataclasses import dataclass, field
+from typing import Type, TypeAlias, Union, Callable, Dict, Any
 
-class BaseResponse(BaseModel):
-    response: str
-
-# generic for services
-TService = TypeVar('TService')
-
-@dataclass
-class ServiceSignature(Generic[TService]):
-    ctor: Callable[..., TService] = field()
-    args: Tuple[Any, ...] = field(default=None)
-    kwargs: Dict[str, Any] = field(default=None)
-
-    def new(self):
-        return self.ctor(*self.args, **self.kwargs)
+from .signature import ServiceSignature, TService
     
 TransientsCache: TypeAlias = Dict[Type[Any], ServiceSignature[Any]]
 SingletonsCache: TypeAlias = Dict[Type[Any], Any]
 
 class DependencyContainer:
+
     def __init__(self) -> None:
         self._singletons: SingletonsCache = dict()
         self._transients: TransientsCache = dict()
         self._registrations = set()
-
-    def _is_registered_interface(self, interface_type: Type[TService]) -> bool:
-        return interface_type in self._registrations
-    
-    @classmethod
-    def _typecheck(cls, interface_type: Type[TService], service: Union[TService, Callable[..., TService]]):
-        return (callable(service) and issubclass(service, interface_type)) or type(service) == interface_type
 
     def add_singleton(
         self, 
@@ -70,13 +48,22 @@ class DependencyContainer:
             raise TypeError(
                 f'Supplied type is not dervied from interface type: {interface_type}'
             )
-        self._transients[interface_type] = ServiceSignature(constructor, args, kwargs)
-
-    def get(self, interface: Type[TService]) -> TService:
-        if interface in self._transients:
-            service_factory: ServiceSignature[TService] = self._transients[interface]
-            return service_factory.new()
-        elif interface in self._singletons:
-            return self._singletons[interface]
-        else:
-            raise KeyError(f"Service {interface} not found")
+        self._transients[interface_type] = ServiceSignature(constructor, args=args, kwargs=kwargs)        
+        
+    def inject(self, interface: Type[TService]) -> Callable[[], TService]:
+        def resolve() -> TService:
+            if interface in self._transients:
+                signature: ServiceSignature[TService] = self._transients[interface]
+                return signature.new()
+            elif interface in self._singletons:
+                return self._singletons[interface]
+            else:
+                raise KeyError(f"Service {interface} not found")
+        return resolve
+        
+    def _is_registered_interface(self, interface_type: Type[TService]) -> bool:
+        return interface_type in self._registrations
+    
+    @classmethod
+    def _typecheck(cls, interface_type: Type[TService], service: Union[TService, Callable[..., TService]]):
+        return (callable(service) and issubclass(service, interface_type)) or type(service) == interface_type
