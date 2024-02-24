@@ -31,7 +31,7 @@ class ServiceProvider:
     def __init__(self) -> None:
         self._init: bool = False
         self._singletons: Dict[Type[Any], Union[ServiceSignature[Any], Any]] = dict()
-        self._transients: Dict[Type[Any], ServiceSignature[Any]] = dict()
+        self._scoped: Dict[Type[Any], ServiceSignature[Any]] = dict()
         self._configs: Dict[Type[Any], Union[ServiceSignature[Any], Any]] = dict()
         self._container: Dict[Type[Any], Dependency] = {}
 
@@ -102,7 +102,7 @@ class ServiceProvider:
         self._singletons[interface_type] = ServiceSignature(pattern) if is_callable else pattern
         self._container[interface_type] = Dependency(self, interface_type)
 
-    def add_transient(
+    def add_scoped(
         self, 
         interface_type: Type[TService], 
         pattern: Callable[..., TService], 
@@ -125,7 +125,7 @@ class ServiceProvider:
             raise TypeError(
                 f'Supplied type is not dervied from interface type: {interface_type}'
             )
-        self._transients[interface_type] = ServiceSignature(pattern)
+        self._scoped[interface_type] = ServiceSignature(pattern)
         self._container[interface_type] = Dependency(self, interface_type)    
         
     def inject(self, interface_type: Type[TService]) -> Dependency:
@@ -156,13 +156,13 @@ class ServiceProvider:
             if caller:
                 msg = (
                     f'{msg} but is a required dependency for {caller}. Make sure to '
-                    f'register {interface_type} as a configuration, singleton, or transient.'
+                    f'register {interface_type} as a configuration, singleton, or scoped.'
                 )
             else:
                 msg += '.'
             raise ValueError(msg)
-        if interface_type in self._transients:
-            pattern = self._transients[interface_type]
+        if interface_type in self._scoped:
+            pattern = self._scoped[interface_type]
             signature = inspect.signature(pattern.ctor).parameters
             signature = {
                 name: self.resolve(param.annotation, caller=interface_type.__name__)
@@ -188,16 +188,16 @@ class ServiceProvider:
     def singleton(self, cls: Type[TService]):
         return self._mark('singleton')(cls)
     
-    def transient(self, cls: Type[TService]):
-        return self._mark('transient')(cls)
+    def scoped(self, cls: Type[TService]):
+        return self._mark('scoped')(cls)
     
     def _mark(self, registration_type: str):
         def class_dec(cls: Type[TService]):
             base = cls.__bases__[0]
             if registration_type == 'singleton':
                 self.add_singleton(base if base != object else cls, cls)
-            elif registration_type == 'transient':
-                self.add_transient(base if base != object else cls, cls)
+            elif registration_type == 'scoped':
+                self.add_scoped(base if base != object else cls, cls)
             else:
                 raise ValueError('Unknown registration type')
             return cls
@@ -205,7 +205,7 @@ class ServiceProvider:
         
     def _registered(self, interface_type):
         return (
-            interface_type in self._transients or
+            interface_type in self._scoped or
             interface_type in self._singletons or
             interface_type in self._configs
         )

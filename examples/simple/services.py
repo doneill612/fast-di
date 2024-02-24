@@ -17,7 +17,7 @@ class IService(ABC):
     def get_message(self) -> str:
         ...
 
-@fastdi.transient
+@fastdi.scoped
 class MyTransientService(IService):
 
     def __init__(self, config: MyConfiguration):

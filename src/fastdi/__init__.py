@@ -5,8 +5,8 @@ from fastapi import FastAPI
 def init(api: FastAPI) -> ServiceProvider:
     provider.initialize(api)
 
-def transient(cls):
-    return provider.transient(cls)
+def scoped(cls):
+    return provider.scoped(cls)
 
 def singleton(cls):
     return provider.singleton(cls)
@@ -33,7 +33,7 @@ provider = __fastdi.provider
 __all__ = [
     'provider',
     'init',
-    'transient',
+    'scoped',
     'singleton'
     'inject'
 ]
