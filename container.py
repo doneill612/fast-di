@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Type, Dict, Callable, TypeVar, TypeAlias, Any, Union, Tuple, Generic
 from pydantic import BaseModel
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 class BaseResponse(BaseModel):
     response: str
@@ -11,9 +11,9 @@ TService = TypeVar('TService')
 
 @dataclass
 class ServiceSignature(Generic[TService]):
-    ctor: Callable[..., TService]
-    args: Tuple[Any, ...]
-    kwargs: Dict[str, Any]
+    ctor: Callable[..., TService] = field()
+    args: Tuple[Any, ...] = field(default=None)
+    kwargs: Dict[str, Any] = field(default=None)
 
     def new(self):
         return self.ctor(*self.args, **self.kwargs)
@@ -31,8 +31,8 @@ class DependencyContainer:
         return interface_type in self._registrations
     
     @classmethod
-    def _typecheck(cls, interface_type: Type[TService], service: TService):
-        return type(service) == interface_type
+    def _typecheck(cls, interface_type: Type[TService], service: Union[TService, Callable[..., TService]]):
+        return (callable(service) and issubclass(service, interface_type)) or type(service) == interface_type
 
     def add_singleton(
         self, 
@@ -64,6 +64,12 @@ class DependencyContainer:
         *args, 
         **kwargs
     ) -> None:
+        if self._is_registered_interface(interface_type):
+            raise ValueError(f'{interface_type.__name__} already registered with this container.')
+        elif not self._typecheck(interface_type, constructor):
+            raise TypeError(
+                f'Supplied type is not dervied from interface type: {interface_type}'
+            )
         self._transients[interface_type] = ServiceSignature(constructor, args, kwargs)
 
     def get(self, interface: Type[TService]) -> TService:
