@@ -1,12 +1,12 @@
-from .container import ServiceProvider
+from .dependency import DependencyContainer
 from fastapi import FastAPI
 
 
-def init(api: FastAPI) -> ServiceProvider:
+def init(api: FastAPI) -> DependencyContainer:
     provider.initialize(api)
 
 def scoped(cls):
-    return provider.scoped(cls)
+    return provider.transient(cls)
 
 def singleton(cls):
     return provider.singleton(cls)
@@ -20,10 +20,10 @@ def add_configuration(configuration):
 class __FastDI:
 
     def __init__(self):
-        self._provider = ServiceProvider()
+        self._provider = DependencyContainer()
 
     @property
-    def provider(self) -> ServiceProvider:
+    def provider(self) -> DependencyContainer:
         return self._provider
 
 __fastdi = __FastDI()

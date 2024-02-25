@@ -1,5 +1,6 @@
 from typing import (
     Annotated,
+    Any,
     TypeVar,
     Generic, 
     Callable, 
@@ -7,24 +8,19 @@ from typing import (
 
 from dataclasses import dataclass, field
 
-from .types import TService
+D = TypeVar('D')
 
 @dataclass
-class ServiceSignature(Generic[TService]):
+class Signature(Generic[D]):
     """Encapsulates the constructor signature of a particular service that gets registerd with the container.
 
     Args:
-        Generic (TService): Generically typed signature to TService
+        Generic (D): Generically typed signature to D
     """
-    ctor: Annotated[
-        Callable[..., TService], 
+    constructor: Annotated[
+        Callable[..., D], 
         field(metadata={'description': 'The service constructor.'})
     ]
-
-    def new(self, *args, **kwargs) -> TService:
-        """Constructs a new instance of the service which can be registered with the container.
-
-        Returns:
-            TService: A concrete instance of type `TService`
-        """
-        return self.ctor(*args, **kwargs)
+    
+    def __call__(self, *args: Any, **kwds: Any) -> D:
+        return self.constructor(*args, **kwds)
