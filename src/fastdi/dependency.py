@@ -14,10 +14,6 @@ SingletonPattern: TypeAlias = Union[Signature[Any], Any]
 TransientPattern: TypeAlias = Signature[Any]
 Pattern: TypeAlias = Union[SingletonPattern, TransientPattern]
 
-SingletonCache: TypeAlias = Dict[Type[Any], SingletonPattern]
-TransientCache: TypeAlias = Dict[Type[Any], TransientPattern]
-
-
 
 class Scope(str, Enum):
     SINGLETON = 'singleton'
